@@ -312,10 +312,10 @@ short message
         # 8 to avoid huge messages
         display_matches = matches if len(matches) <= 8 \
                      else matches[:8]
-        message = "Z202 repeated block detected " \
-                +f"({s['count']} occurrences). Consider " \
-                + "extracting a function for the block at " \
-                +f"lines {display_matches}" \
+        message = f"repeated block detected ({s['count']} " \
+                +  "occurrences). Consider extracting a " \
+                +  "function for the block at lines " \
+                + f"{display_matches}"
         
         if len(matches) > 8:
             message += f" (and {len(matches)-8} more occurrences)"
