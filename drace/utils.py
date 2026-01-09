@@ -25,7 +25,7 @@ def annotate_parents(node: ast.AST, parent=None) -> None:
         parent = ast.Module(body=[], type_ignores=[])
     for child in ast.iter_child_nodes(node):
         child.parent = parent
-        annotate_parents(child, child)
+        annotate_parents(child, node)
 
 
 def _in_docstring(marker: str) -> bool:

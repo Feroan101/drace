@@ -3,7 +3,7 @@ from pathlib import Path
 import io
 
 # ========================= LOCALS ==========================
-from drace.constants import IGNORED_RULES
+from drace.constants import IGNORED_RULES, ONLY
 from drace.darkian import get_rules
 from .pycodestyle import Checker
 from .pyflakes import flake_api
@@ -25,6 +25,7 @@ def run_style_checks(file: str | Path) -> list[dict]:
 
     results = []
     for line, col, code, msg in checker.report.errors:
+        if ONLY and code not in ONLY: continue
         if code in IGNORE: continue
         results.append({
             "file": file,
@@ -70,6 +71,7 @@ def run_flake_checks(file: str | Path) -> list[dict]:
         if len(parts) == 3:
             line, col, _  = parts
             code, message = format_flake(_)
+            if ONLY and code not in ONLY: continue
             if code in IGNORE: continue
             if "unexpected indent" in message: continue
             if "unterminated stri" in message: continue

@@ -15,7 +15,7 @@ COLOR = defaults.get("color", True)
 if "--color" in sys.argv: COLOR = not COLOR
 
 MODE          = defaults.get("mode", "lint")
-ONLY_RULES    = defaults.get("only_rules",    None) or []
+ONLY          = defaults.get("only_rules",    None) or []
 IGNORED_RULES = defaults.get("ignored_rules", None) or []
 IGNORED_FILES = defaults.get("ignored_files", None) or []
 SCORE         = defaults.get("score", True)
@@ -42,5 +42,4 @@ KEYWORDS      = ('if ', 'for ', 'while ', 'with ', 'elif ',
 
 def override(args):
     if "--score" in sys.argv: args.score = not SCORE
-    
     return args
