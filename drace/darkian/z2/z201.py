@@ -1,12 +1,17 @@
 import ast
 
+from drace.types import Context, Dict
 from drace import utils
 
-CONTROL_NODE_TYPES = (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.AsyncFor, ast.AsyncWith)
+
+CONTROL_NODE_TYPES = (ast.If, ast.For, ast.While, ast.With,
+                      ast.Try, ast.AsyncFor, ast.AsyncWith)
+
 
 def _is_comment_or_empty(line: str) -> bool:
     s = line.strip()
     return not s or s.startswith("#")
+
 
 def _is_semicolon_compound(line: str) -> bool:
     """
@@ -14,21 +19,27 @@ def _is_semicolon_compound(line: str) -> bool:
     separated by semicolons. We use utils.tolerant_parse_module to avoid false positives (strings, SQL, etc).
     """
     tree = utils.tolerant_parse_module(line)
-    # treat as compound only if parse produced 2+ top-level statements
+    # treat as compound only if parse produced 2+ top-level
+    # statements
     return len(getattr(tree, "body", [])) >= 2
 
-def check(lines: list[str], tree, file: str) -> list[dict]:
+
+def check_z201(context: Context) -> list[Dict]:
     """
     Z201: Warn against over-compacted blocks.
 
     Flags:
-      * control blocks written on a single physical line whose total length > utils.LINE_LEN
-      * semicolon-joined single physical lines that parse to multiple statements and exceed utils.LINE_LEN
+      - control blocks written on a single physical line whose
+        total length > utils.LINE_LEN
+      - semicolon-joined single physical lines that parse to
+        multiple statements and exceed utils.LINE_LEN
 
     Conservative: uses AST to avoid false positives.
     """
+    lines, tree, file = context.values()
+
     results = []
-    src = "\n".join(lines)
+    source  = "\n".join(lines)
     for node in ast.walk(tree):
         if isinstance(node, CONTROL_NODE_TYPES):
             # ensure node has location info
@@ -39,14 +50,14 @@ def check(lines: list[str], tree, file: str) -> list[dict]:
                 continue
             # get source for the node; ast.get_source_segment may return None in some cases
             try:
-                node_src = ast.get_source_segment(src, node) or ""
+                node_source = ast.get_source_segment(source, node) or ""
             except Exception:
                 # fallback: slice from lineno..end_lineno
                 start = node.lineno - 1
-                node_src = lines[start].rstrip("\n")
-            if not node_src:
+                node_source = lines[start].rstrip("\n")
+            if not node_source:
                 continue
-            if len(node_src) > utils.LINE_LEN:
+            if len(node_source) > utils.LINE_LEN:
                 results.append({
                     "file": file,
                     "line": node.lineno,

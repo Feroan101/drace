@@ -93,14 +93,20 @@ def run_darkian_checks(file: str | Path) -> list[dict]:
     file          = str(file)
     results       = []
     tree, synerrs = utils.tolerant_parse_module(lines, True)
+    context       = {
+        "lines": lines,
+         "tree": tree,
+         "file": file,
+    }
 
-    for rule in get_rules():
-        results.extend(rule(lines, tree, file))
+    for rule in get_rules(IGNORE, ONLY):
+        results.extend(rule(context))
 
     for synerr in synerrs:
         if "triple-" in synerr[1]: continue
         if "invalid" in synerr[1]: continue
         if "string " in synerr[1]: continue
+
         results.append({
             "file": file,
             "line": synerr[0],

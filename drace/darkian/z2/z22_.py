@@ -1,6 +1,7 @@
 import builtins
 import ast
 
+from drace.types import Context, Dict
 from drace import utils
 
 # =================== Z220 to Z229 Draft ====================
@@ -248,9 +249,11 @@ def Z229_check(tree, file: str) -> list[dict]:
     return results
 
 # ------------------------ Run Checks -----------------------
-def check(lines: list[str], tree, file: str) -> list[dict]:
+def check_Z22_(context: Context) -> list[Dict]:
     rules = [Z221_check, Z222_check, Z223_check, Z224_check,
              Z225_check, Z228_check, Z229_check]
+
+    lines, tree, file = context.values()
 
     results = []
     for rule in rules:

@@ -4,6 +4,7 @@ import math
 import ast
 
 # ========================== LOCALS =========================
+from drace.types import Context, Dict
 from drace import utils
 
 
@@ -231,7 +232,7 @@ def collect_sequences(tree: ast.AST, min_len: int = 2,
     return sequences
 
 
-def check(tree, file: str) -> list[dict]:
+def check_z202(context: Context) -> list[Dict]:
     """
     Z202: find repeated sequences of statements and suggest
           abstraction
@@ -239,6 +240,8 @@ def check(tree, file: str) -> list[dict]:
     Returns list of issues; each issue contains occurrences
     and a short message
     """
+    _, tree, file = context.values()
+
     seqs    = collect_sequences(tree)
     results = []
     limit   = 8

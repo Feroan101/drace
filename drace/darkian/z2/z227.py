@@ -1,9 +1,11 @@
 import builtins
 import ast
 
+from drace.types import Context, Dict
 from drace import utils
 
-def check(tree, file: str) -> list[dict]:
+
+def check_z227(context: Context) -> list[Dict]:
     """
     Z227: Detect hidden dependencies in functions and nested functions.
     Hidden dependency = a name used in a function that is not:
@@ -13,6 +15,8 @@ def check(tree, file: str) -> list[dict]:
       - a module-level constant (ALL_CAPS assigned at top level).
     Globals (non-constant) and other external names will be flagged.
     """
+    _, tree, file = context.values()
+
     results = []
     
     builtin_names: set[str] = set(dir(builtins))

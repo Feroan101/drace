@@ -1,15 +1,15 @@
 """
-This module provides the configuration interface for Kitty — 
-both as a command-line utility and an interactive USSD-like 
-menu. It supports setting, resetting, and retrieving 
-persistent user-defined options for Kitty's behavior
+This module provides the configuration interface for Drace —
+both as a command-line utility and an interactive USSD-like
+menu. It supports setting, resetting, and retrieving
+persistent user-defined options for Drace's behavior.
 
 Key Features:
 - Persistent config management via a JSON file
 - CLI commands to view, update, or reset individual or all
   config options
 - USSD-style interactive interface for ease of use
-- Supports type-aware casting, list manipulation 
+- Supports type-aware casting, list manipulation
   (add/remove), and safe validation
 
 Functions:
@@ -28,16 +28,15 @@ Classes:
           config values
 
 Notes:
-- The term 'hapana' (Shona for "nothing") is used internally 
-  to represent a placeholder value in scenarios where no 
-  explicit value is given
+- The term 'hapana' (Shona for "nothing") is used internally
+  to represent a placeholder value in scenarios where no
+  explicit value is given.
 
 This module is designed to be user-friendly, flexible, and
-forgiving — in line with Kitty's pragmatic philosophy
+forgiving — in line with Drace's pragmatic philosophy.
 """
 # ========================= STANDARDS =======================
 from typing import NoReturn
-from pathlib import Path
 import json
 import sys
 import os
@@ -45,8 +44,8 @@ import re
 
 # ======================= THIRD-PARTIES =====================
 from tuikit.listools import list_items, choose, pick_from
-from tuikit.textools import strip_ansi
 from tuikit.logictools import any_eq, any_in
+from tuikit.textools import strip_ansi
 
 # ========================== LOCALS =========================
 from .utils import APP_COLOR, YELLOW, GOOD, BAD, CURSOR, CMDS
@@ -74,12 +73,12 @@ DEFAULTS = {
 
 class Config:
     """
-    Handles persistent user configuration for Kitty.
+    Handles persistent user configuration for Drace.
 
     Loads, sets, and resets user-defined settings. Values are
-    saved to a JSON file (`DEFAULTS_PATH`), and changes are 
+    saved to a JSON file (`DEFAULTS_PATH`), and changes are
     applied instantly.
-    
+
     This class is tightly integrated with the CLI and
     USSD-style interface.
 
@@ -88,44 +87,45 @@ class Config:
         defaults (dict): The current active defaults.
     """
     def __init__(self):
-        """Initializes the config system by loading existing or default values"""
+        """Initializes the config system by loading existing or default values."""
         self.path     = DEFAULTS_PATH
         self.defaults = self._load()
 
     def _load(self) -> dict:
         """
-        Loads config from file. If it doesn't exist, calls 
-        `reset()` to generate default values
+        Loads config from file. If it doesn't exist, calls
+        `reset()` to generate default values.
 
         Returns:
             dict: The active configurations
         """
         if os.path.exists(self.path):
             with open(self.path) as f: return json.load(f)
-        
+
         self.reset()
         return self.defaults
 
     def _save(self) -> None:
-        """Persists the current defaults to json"""
+        """Persists the current defaults to json."""
         with open(self.path, 'w') as f:
             json.dump(self.defaults, f)
 
-    def set(self, key: str, value: int|float|bool|list) -> None:
+    def set(self, key: str, value: int | float | bool | list):
         """
-        Sets a config value and saves to json
+        Sets a config value and saves to json.
 
         Args:
-            key (str): The config key.
-            value (int|bool|list): The new value to assign.
+            key (str): The config key
+            value (int|float|bool|list): The new value to
+                                         assign
         """
         self.defaults[key] = value
         self._save()
 
     def get(self, key: str, fallback=None
-           ) -> int|float|bool|list|None:
+           ) -> int | float | bool | list | None:
         """
-        Retrieves a config value
+        Retrieves a config value.
 
         Args:
             key (str): The config key.
@@ -136,10 +136,10 @@ class Config:
             Any: The config value or fallback.
         """
         return self.defaults.get(key, fallback)
-    
-    def reset(self, target: str = "hapana") -> None:
+
+    def reset(self, target: str = "hapana"):
         """
-        Resets one or all config values to their defaults
+        Resets one or all config values to their defaults.
 
         Args:
             target (str): The key to reset, or "hapana"/"all"
@@ -151,34 +151,33 @@ class Config:
                 return
             self.defaults[target] = DEFAULTS[target][1]
         else:
-            defaults = {}
-            for k, v in DEFAULTS.items(): defaults[k] = v[1]
-            self.defaults = defaults
+            for k, v in DEFAULTS.items():
+                self.defaults[k] = v[1]
         self._save()
 
 
 def sanitize_args(args) -> list[str] | NoReturn:
     """
-    Normalizes and interprets CLI arguments for `drace 
+    Normalizes and interprets CLI arguments for `drace
     config`.
 
     Handles flexible separators (`=`, `:`, `+`, `-`) and
-    reconstructs input into a standard [key, value(s)] 
-    format. Also simulates modifier flags (`+`, `-`) by 
+    reconstructs input into a standard [key, value(s)]
+    format. Also simulates modifier flags (`+`, `-`) by
     appending them to `sys.argv` for later checks.
 
     Special handling for:
       - Single argument lookups (e.g. `drace config wrap`)
-      - Key-only commands like `reset`, `show`, `list`, and 
+      - Key-only commands like `reset`, `show`, `list`, and
         `help`
-      - Embedded separators (e.g. `line_len=100`, 
+      - Embedded separators (e.g. `line_len=100`,
         `ignored_rules+Z100`)
       - Gracefully handles unknown keys with user feedback
 
     'hapana' is used as a placeholder value when only a key
     is passed (e.g. `drace config line_len`) to differentiate
     it from `None` or other falsy values — since those might
-    be valid defaults. This allows `config_cmd()` to detect 
+    be valid defaults. This allows `config_cmd()` to detect
     intent (like showing a value) without conflict.
 
     Args:
@@ -186,7 +185,7 @@ def sanitize_args(args) -> list[str] | NoReturn:
                      command
 
     Returns:
-        list: A cleaned list of [key, value(s)] or control 
+        list: A cleaned list of [key, value(s)] or control
               command
     """
     sep = ["=", ":", "+", "-"]
@@ -223,7 +222,7 @@ def sanitize_args(args) -> list[str] | NoReturn:
                 args   = args[0]
                 if args not in config.defaults:
                     if args not in extras:
-                        transmit(f"unknown key: {args}\n", 
+                        transmit(f"unknown key: {args}\n",
                                   BAD)
                         sys.exit(1)
                 args = [args, "hapana"]
@@ -238,16 +237,16 @@ def sanitize_args(args) -> list[str] | NoReturn:
 def interactive() -> list[str] | NoReturn:
     """
     Launches an interactive USSD-like menu for configuring
-    Kitty defaults
+    Drace defaults.
 
     Prompts the user to select a config option and input a
-    new value
+    new value.
 
     Displays current value and hints. Gracefully handle
-    exits (via Ctrl+C, Ctrl+D, or explicit "Back" choice)
+    exits (via Ctrl+C, Ctrl+D, or explicit "Back" choice).
 
     Returns a list containing the selected config key and its
-    new value
+    new value.
     """
     head = center("《 DRACE CONFIG 》", "=", GOOD, APP_COLOR)
     print(f"\n{head}")
@@ -257,7 +256,7 @@ def interactive() -> list[str] | NoReturn:
 
     # list keys USSD-style and get choice
     list_items(DEFAULTS, guide="Choose option to change")
-    choice = choose(DEFAULTS, getch=True, src=interactive, 
+    choice = choose(DEFAULTS, getch=True, src=interactive,
              hue=APP_COLOR)
 
     if choice is None: print(); sys.exit(0)
@@ -268,21 +267,21 @@ def interactive() -> list[str] | NoReturn:
     key, val = color(option, GOOD), color(value, YELLOW)
     message  = f"{key} ::: {val} ::: New value:"
     transmit(message)
-    
+
     try: new = input(CURSOR).strip()
     except (KeyboardInterrupt, EOFError) as e:
         if isinstance(e, EOFError): print()
         sys.exit(1)
     finally: underline(hue=APP_COLOR, alone=True)
-    
+
     return [option, new]
 
 
-def _handle_list(key: str, values: tuple[str|list]
+def _handle_list(key: str, values: tuple[str | list]
                 ) -> list[str] | None:
     """
-    Handles list-type config value manipulation (set, add, 
-    remove)
+    Handles list-type config value manipulation (set, add,
+    remove).
 
     Determines whether to:
       - replace the entire list,
@@ -294,13 +293,13 @@ def _handle_list(key: str, values: tuple[str|list]
         values (list): The new value(s) passed from CLI input
 
     Returns:
-        list | None: The updated list for the given key, or 
+        list | None: The updated list for the given key, or
                      None if resulting list is empty
-    
+
     Notes:
         - Values are extended or removed based on presence of
           '+' or '-' in sys.argv
-        - If the final list contains only one empty string, 
+        - If the final list contains only one empty string,
           it's interpreted as None
     """
     if isinstance(values[0], str): value = list(values)
@@ -328,39 +327,39 @@ def _handle_list(key: str, values: tuple[str|list]
 
 def config_cmd(args: list[str] | list) -> None:
     """
-    Handles configuration commands for Kitty via C9LI or 
+    Handles configuration commands for Drace via C9LI or
     interactive prompt.
 
-    Supports viewing, modifying, and resetting user-defined 
-    configuration options. The function also handles 
-    displaying help information, listing all current config 
+    Supports viewing, modifying, and resetting user-defined
+    configuration options. The function also handles
+    displaying help information, listing all current config
     values, and updating individual keys.
 
     Args:
-        args (list[str] | list): Command-line arguments 
-            passed to `drace config`. If empty or None, 
+        args (list[str] | list): Command-line arguments
+            passed to `drace config`. If empty or None,
             launches the interactive config menu.
 
     Supported commands:
         - <key> <value>         Set the value of a config key
-        - <key> = <value>       Alternative way to set a 
+        - <key> = <value>       Alternative way to set a
                                 value
-        - <key> + <value>       Add to list-type config 
+        - <key> + <value>       Add to list-type config
                                 values
-        - <key> - <value>       Remove from list-type config 
+        - <key> - <value>       Remove from list-type config
                                 values
-        - list                  Show all current config 
+        - list                  Show all current config
                                 values
-        - show <key>            Show value of a specific 
+        - show <key>            Show value of a specific
                                 config key
-        - reset <key|all>       Reset a key or all config 
+        - reset <key|all>       Reset a key or all config
                                 values to defaults
         - help                  how help menu
 
     Notes:
-        - Handles type conversion based on the expected type 
+        - Handles type conversion based on the expected type
           for each key.
-        - Allows multiple input styles and separators (e.g., 
+        - Allows multiple input styles and separators (e.g.,
           "key ::: value").
         - List-type configs can be modified incrementally.
         - Ignores case for boolean values ("yes", "on", etc)
@@ -400,9 +399,9 @@ def config_cmd(args: list[str] | list) -> None:
         except KeyError:
             transmit(f"Unknown key: {args[1]}\n", BAD)
         return
-    
+
     key, *values = args
-    
+
     key = key.strip()
     if key not in DEFAULTS:
         transmit(f"unknown key: {key}\n", BAD)
@@ -424,7 +423,7 @@ def config_cmd(args: list[str] | list) -> None:
             value = _type(values[0])
     except (IndexError, ValueError, TypeError):
         transmit(f"Invalid value for {key}. Expected "
-                +f"{exp_list or _type.__name__}\n", BAD)
+               + f"{exp_list or _type.__name__}\n", BAD)
         return
 
     config.set(key, value)

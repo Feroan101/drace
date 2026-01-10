@@ -1,14 +1,17 @@
 from drace.constants import KEYWORDS, LINE_LEN
+from drace.types import Context, Dict
 
 
-def check(lines: list[str], file: str) -> list[dict]:  
+def check_z200(context: Context) -> list[Dict]:
     """  
     Z200: Encourage compact control blocks.  
   
     Flags control blocks with a single meaningful line, 
     suggesting conversion to one-liners (if under line length 
     limit), even if nested inside other blocks  
-    """  
+    """
+    lines, _, file = context.values()
+
     results = []  
     i       = 0  
     total   = len(lines)  

@@ -5,116 +5,13 @@ import ast
 import os
 import re
 
-from drace.utils import Align, any_eq, all_in, find_proot
+from drace.utils import Align, any_eq, all_in, any_in
+from drace.types import Context, Dict
 from drace.constants import KEYWORDS
+from drace.utils import find_proot
 
 
-PROOT      = None
-_ASSIGN_RE = re.compile(r"(?<![=!<>+\-*/%&|^])=(?!=)")
-
-
-def _find_assignment_pos(line: str) -> int | None:
-    """
-    Return column index (0-based) of the assignment '=' for 
-    real assignments, or None
-    """
-    m = _ASSIGN_RE.search(line)
-    if not m: return None
-    return m.start()
-
-
-def _is_simple_assignment(node: ast.AST) -> bool:
-    """
-    Return True for top-level Assign or AnnAssign statements
-    that are not inside control-flow statements
-    """
-    if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-        return False
-
-    # Walk up the parent chain to ensure it's not inside an
-    # `If`, `For`, etc.
-    control_structs = (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.Match)
-    parent = getattr(node, 'parent', None)
-    while parent:
-        if isinstance(parent, control_structs): return False
-        parent = getattr(parent, 'parent', None)
-
-    return True
-
-
-def _line_indentation(line: str) -> int:
-    """Count leading spaces (or tabs)"""
-    return len(line) - len(line.lstrip(' '))
-
-
-def _is_assignment_line(line: str) -> bool:
-    """naive assignment check, will improve if needed"""
-    stripped = line.lstrip()
-    # Exclude if line starts with control keyword followed by
-    # assignment
-    if any(stripped.startswith(kw) for kw in KEYWORDS):
-        return False
-
-    return '=' in stripped and not stripped.startswith('#')
-
-
-def _group_assignments_by_indent(assign_line_numbers: list[int], lines: list[str]) -> list[list[int]]:
-    groups        = []
-    current_group = []
-    last_indent   = None
-
-    for i, lineno in enumerate(assign_line_numbers):
-        line   = lines[lineno - 1]
-        indent = _line_indentation(line)
-
-        if not current_group:
-            current_group.append(lineno)
-            last_indent = indent
-            continue
-
-        prev_lineno = assign_line_numbers[i - 1]
-        if lineno == prev_lineno + 1:
-            if indent == last_indent and lines[prev_lineno].strip():
-                current_group.append(lineno)
-            else:
-                groups.append(current_group)
-                current_group = [lineno]
-                last_indent   = indent
-        else:
-            groups.append(current_group)
-            current_group = [lineno]
-            last_indent   = indent
-
-    if current_group: groups.append(current_group)
-
-    return groups
-
-
-def _collect_assignment_lines_and_blocks(tree) -> list[tuple[int, ast.AST]]:
-    """
-    Return list of (lineno, node) for assignment-like 
-    statements found in AST, sorted by lineno.
-    """
-    out = []
-
-    for node in ast.walk(tree):
-        if _is_simple_assignment(node):
-            # Some AnnAssign (x: int = 1) may not have lineno
-            # if generated; check presence
-            if hasattr(node, "lineno"):
-                out.append((node.lineno, node))
-
-    out.sort(key=lambda t: t[0])
-    return out
-
-
-def _group_consecutive_lines(lines: list[int]) -> list[list[int]]:
-    if not lines: return []
-    groups = [[lines[0]]]
-    for ln in lines[1:]:
-        if ln == groups[-1][-1] + 1: groups[-1].append(ln)
-        else: groups.append([ln])
-    return groups
+PROOT = None
 
 
 def _module_spec_origin(name: str) -> str | None:
@@ -126,6 +23,7 @@ def _module_spec_origin(name: str) -> str | None:
       - None when spec couldn't be resolved
     """
     if name == "__future__": return name
+
     parts = name.split(".")
     for i in range(len(parts), 0, -1):
         prefix = ".".join(parts[:i])
@@ -136,12 +34,14 @@ def _module_spec_origin(name: str) -> str | None:
             builtins = ("built-in", "frozen")
             if origin is None or any_eq(builtins, eq=origin):
                 return "builtin"
+
             # Normalize to absolute path if it looks like a
             # filesystem path
             try: origin_abs = os.path.abspath(origin)
             except Exception: origin_abs = origin
             return origin_abs
-        # heuristic for relative imports
+
+        # Heuristic for relative imports
         elif name.startswith("."): return PROOT.lower()
     return None
 
@@ -191,15 +91,16 @@ def _classify_import(name: str, cwd: str) -> str:
     try: origin_abs = os.path.abspath(origin)
     except Exception: origin_abs = origin
 
-    origin_l = origin_abs.lower() if isinstance(origin_abs, str) else ""
+    origin_l = origin_abs.lower() if isinstance(origin_abs,
+               str) else ""
     
     # Heuristic: if 'python' appears in the origin path 
     # (stdlib) -> STANDARDS
-    if "python" in origin_l and "site-packages" not in origin_l and "dist-packages" not in origin_l:
-        return "STANDARDS"
+    if "python" in origin_l and not any_in("site-packages", "dist-packages", eq=origin_l): return "STANDARDS"
 
     # site-packages and dist-packages indicate third-party
-    if "site-packages" in origin_l or "dist-packages" in origin_l or _is_editable_third_party(origin_l):
+    if any_in("site-packages", "dist-packages", eq=origin_l)\
+            or _is_editable_third_party(origin_l):
         return "THIRD_PARTIES"
 
     # Fallback: if not stdlib or 3rd-party, then local
@@ -211,7 +112,8 @@ def _import_key_length(line: str) -> int:
     return len(line.rstrip("\n"))
 
 
-def _render_darkian_block(grouped_lines: dict[str, list[str]], preserve_order: list[str]) -> str:
+def _render_darkian_block(grouped_lines: dict[str,
+        list[str]], preserve_order: list[str]) -> str:
     """
     Build the Darkian-standard import block string.
 
@@ -223,8 +125,7 @@ def _render_darkian_block(grouped_lines: dict[str, list[str]], preserve_order: l
     # FUTURE at top if present
     for group in preserve_order:
         lines = grouped_lines.get(group, [])
-        if not lines:
-            continue
+        if not lines: continue
         if group == "FUTURE":
             sections.append("\n".join(lines))
             sections.append("")  # blank line separator
@@ -245,47 +146,18 @@ def _render_darkian_block(grouped_lines: dict[str, list[str]], preserve_order: l
     return "\n".join(sections)
 
 
-def rule_alignment(lines: list[str], tree, file: str) -> list[dict]:
+def check_z101(context: Context) -> list[Dict]:
     """
-    Z100: Enforce vertical alignment of `=` in real assignment blocks.
-    Z101: In import blocks, order imports by descending line length — grouped by Darkian Standard.
+    In import blocks, order imports by descending line
+    length — grouped by Darkian Standard.
     """
     global PROOT
+    lines, _, file = context.values()
+
     PROOT   = find_proot(file)
     results = []
     cwd     = os.getcwd()
 
-    # ======= Z100: assignment alignment (AST-driven) =======
-    assigns = _collect_assignment_lines_and_blocks(tree)
-    assign_line_numbers = [ln for ln, _ in assigns]
-    groups = _group_assignments_by_indent(
-             assign_line_numbers, lines)
-
-    for group in groups:
-        # build the lines corresponding to those assignment
-        # line numbers
-        block_lines  = [lines[ln - 1] for ln in group]
-        eq_positions = []
-        eq_pos_map   = {}
-        for idx, ln in enumerate(group):
-            line = lines[ln - 1]
-            pos  = _find_assignment_pos(line)
-            if pos is None: continue
-            eq_positions.append(pos)
-            eq_pos_map[ln] = pos
-        if not eq_positions: continue
-        target = max(eq_positions)
-        for ln, pos in eq_pos_map.items():
-            if pos != target:
-                results.append({
-                    "file": file,
-                    "line": ln,
-                    "col": pos + 1,
-                    "code": "Z100",
-                    "msg": "assignment not vertically aligned",
-                })
-
-    # ====== Z101: import ordering and Darkian grouping =====
     # Collect contiguous import blocks: sequence of
     # import/from lines (allow inline comments but break on 
     # other code)
@@ -309,7 +181,12 @@ def rule_alignment(lines: list[str], tree, file: str) -> list[dict]:
         # block: list of (index, line)
         # Build classification per import line; also preserve
         # original text
-        grouped: dict[str, list[tuple[str, int]]] = {"FUTURE": [], "STANDARDS": [], "THIRD_PARTIES": [], "LOCALS": []}
+        grouped: dict[str, list[tuple[str, int]]] = {
+            "FUTURE": [],
+            "STANDARDS": [],
+            "THIRD_PARTIES": [],
+            "LOCALS": []
+        }
         for idx, (li, line) in enumerate(block):
             stripped = line.strip()
             # parse the import name for heuristics:
@@ -323,7 +200,8 @@ def rule_alignment(lines: list[str], tree, file: str) -> list[dict]:
                     module_name = parts[1]
             elif stripped.startswith("import "):
                 # import a, b as c
-                rest = stripped[len("import "):].split(",")[0].strip()
+                rest = stripped[len("import "):].split(","
+                       )[0].strip()
                 # take first module name, remove 'as ...' if
                 # present
                 module_name = rest.split()[0]
@@ -332,13 +210,15 @@ def rule_alignment(lines: list[str], tree, file: str) -> list[dict]:
             grp = _classify_import(module_name, cwd)
             # store original line and its raw length for
             # later sorting by descending length
-            grouped.setdefault(grp, []).append((line.rstrip("\n"), start_idx + idx + 1))
+            grouped.setdefault(grp, []).append((
+                line.rstrip("\n"), start_idx + idx + 1))
 
         # If everything already ordered by descending length 
         # within each section and sections in right order,
         # skip
         # Build grouped lines sorted by descending length
-        preserve_order = ["FUTURE", "STANDARDS", "THIRD_PARTIES", "LOCALS"]
+        preserve_order = ["FUTURE", "STANDARDS",
+                          "THIRD_PARTIES", "LOCALS"]
         grouped_sorted_texts: dict[str, list[str]] = {}
         correct_order = []
         for g in preserve_order:
@@ -375,7 +255,9 @@ def rule_alignment(lines: list[str], tree, file: str) -> list[dict]:
             "line": start_idx + 1,
             "col": 1,
             "code": "Z101",
-            "msg": f"import block not ordered by Darkian Standard (descending length per section). Suggestion:{suggestion_text}"
+            "msg": "import block not ordered by Darkian "
+                   "Standard (descending length per "
+                  f"section). Suggestion:{suggestion_text}"
         })
 
     return results
