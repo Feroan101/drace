@@ -88,13 +88,16 @@ def run_flake_checks(file: str | Path) -> list[dict]:
 
 def run_darkian_checks(file: str | Path) -> list[dict]:
     """Run Darkian checks on a file."""
-    lines         = Path(file).read_text(encoding="utf-8")\
-                    .splitlines()
-    file          = str(file)
-    results       = []
+    lines   = Path(file).read_text(encoding="utf-8")\
+              .splitlines()
+    file    = str(file)
+    results = []
+
     tree, synerrs = utils.tolerant_parse_module(lines, True)
-    tree.parent   = tree
-    context       = {
+    utils.annotate_parents(tree)
+    tree.parent = tree
+
+    context = {
         "lines": lines,
          "tree": tree,
          "file": file,
