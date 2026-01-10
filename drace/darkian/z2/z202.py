@@ -240,8 +240,8 @@ def check_z202(context: Context) -> list[Dict]:
     Returns list of issues; each issue contains occurrences
     and a short message
     """
-    _, tree, file = context.values()
-
+    tree    = context["tree"]
+    file    = context["file"]
     seqs    = collect_sequences(tree)
     results = []
     limit   = 8

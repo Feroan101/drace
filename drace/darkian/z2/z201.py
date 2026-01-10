@@ -36,8 +36,9 @@ def check_z201(context: Context) -> list[Dict]:
 
     Conservative: uses AST to avoid false positives.
     """
-    lines, tree, file = context.values()
-
+    lines   = context["lines"]
+    tree    = context["tree"]
+    file    = context["file"]
     results = []
     source  = "\n".join(lines)
     for node in ast.walk(tree):

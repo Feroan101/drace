@@ -21,10 +21,8 @@ MARKER = None
 
 
 def annotate_parents(node: ast.AST, parent=None) -> None:
-    if parent is None:
-        parent = ast.Module(body=[], type_ignores=[])
+    node.parent = parent
     for child in ast.iter_child_nodes(node):
-        child.parent = parent
         annotate_parents(child, node)
 
 

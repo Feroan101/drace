@@ -152,8 +152,8 @@ def check_z101(context: Context) -> list[Dict]:
     length — grouped by Darkian Standard.
     """
     global PROOT
-    lines, _, file = context.values()
-
+    lines   = context["lines"]
+    file    = context["file"]
     PROOT   = find_proot(file)
     results = []
     cwd     = os.getcwd()

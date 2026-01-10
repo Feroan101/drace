@@ -10,8 +10,8 @@ def check_z200(context: Context) -> list[Dict]:
     suggesting conversion to one-liners (if under line length 
     limit), even if nested inside other blocks  
     """
-    lines, _, file = context.values()
-
+    lines   = context["lines"]
+    file    = context["file"]
     results = []  
     i       = 0  
     total   = len(lines)  

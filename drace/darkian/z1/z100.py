@@ -33,6 +33,7 @@ def _is_simple_assignment(node: ast.AST) -> bool:
                        ast.Try, ast.Match)
     parent = getattr(node, 'parent', None)
     while parent:
+        if isinstance(parent, ast.Module): break
         if isinstance(parent, control_structs): return False
         parent = getattr(parent, 'parent', None)
 
@@ -115,7 +116,9 @@ def check_z100(context: Context) -> list[Dict]:
     Z100: Enforce vertical alignment of `=` in real
           assignment blocks.
     """
-    lines, tree, file = context.values()
+    lines     = context["lines"]
+    tree      = context["tree"]
+    file      = context["file"]
     results   = []
     assigns   = _collect_assignment_lines_and_blocks(tree)
     assign_ln = [ln for ln, _ in assigns]

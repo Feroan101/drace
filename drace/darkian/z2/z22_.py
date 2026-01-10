@@ -253,12 +253,12 @@ def check_Z22_(context: Context) -> list[Dict]:
     rules = [Z221_check, Z222_check, Z223_check, Z224_check,
              Z225_check, Z228_check, Z229_check]
 
-    lines, tree, file = context.values()
-
+    lines   = context["lines"]
+    tree    = context["tree"]
+    file    = context["file"]
     results = []
-    for rule in rules:
-        results.extend(rule(tree, file))
 
+    for rule in rules: results.extend(rule(tree, file))
     results.extend(Z226_check(lines, file))
 
     return results

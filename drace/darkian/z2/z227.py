@@ -15,8 +15,8 @@ def check_z227(context: Context) -> list[Dict]:
       - a module-level constant (ALL_CAPS assigned at top level).
     Globals (non-constant) and other external names will be flagged.
     """
-    _, tree, file = context.values()
-
+    tree    = context["tree"]
+    file    = context["file"]
     results = []
     
     builtin_names: set[str] = set(dir(builtins))
@@ -132,12 +132,12 @@ def check_z227(context: Context) -> list[Dict]:
 
             # Determine visible names from enclosing (non-module) scopes
             visible_from_enclosing = get_enclosing_locals(node)
-
+ 
             # Now compute hidden dependencies
-            hidden = used_names - local_vars - visible_from_enclosing \
-                     - builtin_names - imported_names - module_constants
+            hidden = used_names - local_vars \
+                   - visible_from_enclosing - builtin_names \
+                   - imported_names - module_constants
 
-            
             if hidden:
                 results.append({
                     'file': file,

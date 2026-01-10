@@ -93,6 +93,7 @@ def run_darkian_checks(file: str | Path) -> list[dict]:
     file          = str(file)
     results       = []
     tree, synerrs = utils.tolerant_parse_module(lines, True)
+    tree.parent   = tree
     context       = {
         "lines": lines,
          "tree": tree,
